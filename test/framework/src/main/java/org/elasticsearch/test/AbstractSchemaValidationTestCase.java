@@ -11,6 +11,7 @@ package org.elasticsearch.test;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.AdditionalPropertiesValidator;
+import com.networknt.schema.ItemsValidator;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.JsonValidator;
@@ -49,10 +50,10 @@ public abstract class AbstractSchemaValidationTestCase<T extends ToXContent> ext
         assertTrue("schema lacks at least 1 required field", jsonSchema.hasRequiredValidator());
         assertSchemaStrictness(jsonSchema.getValidators().values(), jsonSchema.getSchemaPath());
 
-        JsonNode node = mapper.readTree(xContent.streamInput());
+        JsonNode jsonTree = mapper.readTree(xContent.streamInput());
 
-        Set<ValidationMessage> errors = jsonSchema.validate(node);
-        assertThat("Schema validation failed:", errors, is(empty()));
+        Set<ValidationMessage> errors = jsonSchema.validate(jsonTree);
+        assertThat("Schema validation failed for: " + jsonTree.toPrettyString(), errors, is(empty()));
     }
 
     protected abstract T createTestInstance();
@@ -82,6 +83,16 @@ public abstract class AbstractSchemaValidationTestCase<T extends ToXContent> ext
                 PropertiesValidator propertiesValidator = (PropertiesValidator) validator;
                 for (Entry<String, JsonSchema> subSchema : propertiesValidator.getSchemas().entrySet()) {
                     assertSchemaStrictness(subSchema.getValue().getValidators().values(), propertiesValidator.getSchemaPath());
+                }
+            } else if (validator instanceof ItemsValidator) {
+                ItemsValidator itemValidator = (ItemsValidator) validator;
+                if (itemValidator.getSchema() != null) {
+                    assertSchemaStrictness(itemValidator.getSchema().getValidators().values(), itemValidator.getSchemaPath());
+                }
+                if (itemValidator.getTupleSchema() != null) {
+                    for (JsonSchema subSchema : itemValidator.getTupleSchema()) {
+                        assertSchemaStrictness(subSchema.getValidators().values(), itemValidator.getSchemaPath());
+                    }
                 }
             } else if (validator instanceof AdditionalPropertiesValidator) {
                 additionalPropertiesValidatorFound = true;
