@@ -1,7 +1,7 @@
 {
   "definitions": {},
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/elastic/elasticsearch/master/.../transform_config.schema.json",
+  "$id": "https://raw.githubusercontent.com/elastic/elasticsearch/master/x-pack/plugin/src/test/resources/rest-api-spec/schema/transform_config.schema.json",
   "description": "schema definition for transform configuration object",
   "additionalProperties": false,
   "title": "Root",
