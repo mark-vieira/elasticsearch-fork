@@ -22,7 +22,8 @@
       "type": "array",
       "items": [
         {
-          "type": "object"
+          "$ref": "#/$defs/transform_stats",
+          "uniqueItems": true
         }
       ]
     },
@@ -35,6 +36,48 @@
       "$id": "#root/node_failures",
       "title": "node_failures",
       "type": "array"
+    }
+  },
+  "$defs": {
+    "transform_stats": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "checkpointing": {
+          "type": "object",
+          "description": "TODO"
+        },
+        "id": {
+          "type": "string",
+          "description": "The transform id"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "started",
+            "stopped",
+            "indexing",
+            "failed",
+            "aborting"
+          ],
+          "description": "The transform state"
+        },
+        "stats": {
+          "type": "object",
+          "description": "TODO"
+        },
+        "node": {
+          "type": "object",
+          "description": "TODO"
+        },
+        "reason": {
+          "type": "string",
+          "description": "reason if failed"
+        }
+      }
     }
   }
 }
