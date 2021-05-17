@@ -18,13 +18,13 @@ import org.elasticsearch.gradle.internal.conventions.info.GitInfo;
 import org.gradle.api.NamedDomainObjectSet;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.Task;
 import org.gradle.api.XmlProvider;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.plugins.BasePlugin;
 import org.gradle.api.plugins.BasePluginConvention;
 import org.gradle.api.plugins.JavaLibraryPlugin;
 import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.api.provider.MapProperty;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin;
@@ -46,32 +46,32 @@ public class PublishPlugin implements Plugin<Project> {
         project.getPluginManager().apply(MavenPublishPlugin.class);
         project.getPluginManager().apply(PomValidationPrecommitPlugin.class);
         project.getPluginManager().apply(LicensingPlugin.class);
-        configurePublications(project);
         configureJavadocJar(project);
         configureSourcesJar(project);
         configurePomGeneration(project);
+        configurePublications(project);
     }
 
     private void configurePublications(Project project) {
-        PublishingExtension publishingExtension = project.getExtensions().getByType(PublishingExtension.class);
-        MavenPublication publication = publishingExtension.getPublications().create("elastic", MavenPublication.class);
+        var publishingExtension = project.getExtensions().getByType(PublishingExtension.class);
+        var publication = publishingExtension.getPublications().create("elastic", MavenPublication.class);
         project.getPlugins().withType(JavaPlugin.class, plugin -> publication.from(project.getComponents().getByName("java")));
-        project.getPlugins().withType(ShadowPlugin.class, plugin -> configureWithShadowPlugin(project, publication));
         publication.getPom().withXml(xml -> {
-            Node node = xml.asNode();
+            var node = xml.asNode();
             node.appendNode("inceptionYear", "2009");
-            Node licensesNode = node.appendNode("licenses");
-            Map<String, String> projectLicenses = (Map<String, String>) project.getExtensions().getExtraProperties().get("projectLicenses");
-            projectLicenses.forEach((licenseName, licenseUrl) -> {
+            var licensesNode = node.appendNode("licenses");
+            var projectLicenses = (MapProperty<String, String>) project.getExtensions().getExtraProperties().get("projectLicenses");
+            projectLicenses.get().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
                 Node license = licensesNode.appendNode("license");
-                license.appendNode("name", licenseName);
-                license.appendNode("url", licenseUrl);
+                license.appendNode("name", entry.getKey());
+                license.appendNode("url", entry.getValue());
                 license.appendNode("distribution", "repo");
             });
-            Node developer = node.appendNode("developers").appendNode("developer");
+            var developer = node.appendNode("developers").appendNode("developer");
             developer.appendNode("name", "Elastic");
             developer.appendNode("url", "https://www.elastic.co");
         });
+        project.getPlugins().withType(ShadowPlugin.class, plugin -> configureWithShadowPlugin(project, publication));
         publishingExtension.getRepositories().maven(mavenArtifactRepository -> {
             mavenArtifactRepository.setName("test");
             mavenArtifactRepository.setUrl(new File(project.getRootProject().getBuildDir(), "local-test-repo"));
@@ -86,7 +86,7 @@ public class PublishPlugin implements Plugin<Project> {
      * Configuration generation of maven poms.
      */
     private static void configurePomGeneration(Project project) {
-        TaskProvider<Task> generatePomTask = project.getTasks().register("generatePom");
+        var generatePomTask = project.getTasks().register("generatePom");
         project.getTasks().named(LifecycleBasePlugin.ASSEMBLE_TASK_NAME).configure(assemble -> assemble.dependsOn(generatePomTask));
         project.getTasks()
                 .withType(GenerateMavenPom.class)
@@ -100,7 +100,7 @@ public class PublishPlugin implements Plugin<Project> {
                                 )
                         )
                 );
-        PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
+        var publishing = project.getExtensions().getByType(PublishingExtension.class);
         final var mavenPublications = publishing.getPublications().withType(MavenPublication.class);
         addNameAndDescriptiontoPom(project, mavenPublications);
 
@@ -115,9 +115,9 @@ public class PublishPlugin implements Plugin<Project> {
 
     private static void addNameAndDescriptiontoPom(Project project, NamedDomainObjectSet<MavenPublication> mavenPublications) {
         mavenPublications.all(p -> p.getPom().withXml(xml -> {
-            Node root = xml.asNode();
+            var root = xml.asNode();
             root.appendNode("name", project.getName());
-            String description = project.getDescription() != null ? project.getDescription() : "";
+            var description = project.getDescription() != null ? project.getDescription() : "";
             root.appendNode("description", description);
         }));
     }
@@ -126,9 +126,9 @@ public class PublishPlugin implements Plugin<Project> {
         // Workaround for https://github.com/johnrengelman/shadow/issues/334
         // Here we manually add any project dependencies in the "shadow" configuration to our generated POM
         publication.getPom().withXml(xml -> {
-            Node root = xml.asNode();
+            var root = xml.asNode();
             NodeList dependencies = (NodeList) root.get("dependencies");
-            Node dependenciesNode = (dependencies.size() == 0)
+            var dependenciesNode = (dependencies.size() == 0)
                     ? root.appendNode("dependencies")
                     : (Node) ((NodeList) root.get("dependencies")).get(0);
             project.getConfigurations().getByName(ShadowBasePlugin.getCONFIGURATION_NAME()).getAllDependencies().all(dependency -> {
@@ -146,9 +146,9 @@ public class PublishPlugin implements Plugin<Project> {
     }
 
     private static void addScmInfo(XmlProvider xml, GitInfo gitInfo) {
-        Node root = xml.asNode();
+        var root = xml.asNode();
         root.appendNode("url", gitInfo.urlFromOrigin());
-        Node scmNode = root.appendNode("scm");
+        var scmNode = root.appendNode("scm");
         scmNode.appendNode("url", gitInfo.getOrigin());
     }
 
@@ -157,7 +157,7 @@ public class PublishPlugin implements Plugin<Project> {
      */
     private static void configureJavadocJar(Project project) {
         project.getPlugins().withType(JavaLibraryPlugin.class, p -> {
-            TaskProvider<Jar> javadocJarTask = project.getTasks().register("javadocJar", Jar.class);
+            var javadocJarTask = project.getTasks().register("javadocJar", Jar.class);
             javadocJarTask.configure(jar -> {
                 jar.getArchiveClassifier().set("javadoc");
                 jar.setGroup("build");
